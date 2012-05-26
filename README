@@ -1,1 +1,1 @@
-pReduce job to compute global variance of a series of simulation runs for all node space.
+MapReduce job to compute global variance of a series of simulation runs for all node space.
