@@ -1,11 +1,11 @@
 """
 MapReduce job to compute global variance of a series of simulation runs for all node space.
 
-example:
+Example:
 
-python mr_globalvar_hadoop.py 
-hdfs://icme-hadoop1.localdomain/user/yangyang/simform/data/thermal_maze00*/thermal_*.seq
--r hadoop --no-output -o var_temp --variable TEMP
+python mr_globalvar_hadoop.py \
+hdfs://icme-hadoop1.localdomain/user/yangyang/simform/data3/thermal_maze00*/thermal_*.seq \
+-r hadoop --no-output -o var_temp1 --variable TEMP 
 
 """
 
@@ -45,18 +45,16 @@ class MRGlobalVar(MRJob):
                 name = var[0]
                 if name == self.variable:
                     data = var[1]
+                    data = array(data)
                     len = data.size
-                    # We split the data into four parts so that each part can be computed by one 
-                    # reduce task, in order to make the computation much faster than non-split.
-                    # In .mrjob.conf, we set mapred.reduce.tasks = 4
-                    data1 = data[:len/4]
-                    data2 = data[len/4:len/2]
-                    data3 = data[len/2:len/4*3]
-                    data4 = data[len/4*3:]
-                    yield (1, data1)
-                    yield (2, data2)
-                    yield (3, data3)
-                    yield (4, data4)
+                    i = 40
+                    for j in range(0,i):
+                        if j != i-1:
+                            tmpdata = data[len/i*j:len/i*(j+1)]
+                        else:
+                            tmpdata = data[len/i*j:]
+                        yield (j, tmpdata)
+           
 
     def reducer(self, key, values): 
         mean = 0
@@ -66,7 +64,12 @@ class MRGlobalVar(MRJob):
             mean = (i*mean+value)/(i+1)
         variance = mean2 - mean*mean
         
-        yield (key, variance)    
+        # To avoid PICKLE type in typedbytes files
+        variance2 = []
+        for i, ele in enumerate(variance):
+            variance2.append(float(ele))
+            
+        yield (key, variance2)    
         
     def steps(self):
         return [self.mr(self.mapper, self.reducer),]
